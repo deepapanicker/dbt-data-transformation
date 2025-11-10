@@ -1,0 +1,79 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: Staging model for customers data
+    columns:
+      - name: customer_key
+        description: Surrogate key for customer
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Source system customer ID
+        tests:
+          - not_null
+      - name: email
+        description: Customer email address
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_orders
+    description: Staging model for orders data
+    columns:
+      - name: order_key
+        description: Surrogate key for order
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: Source system order ID
+        tests:
+          - not_null
+      - name: customer_id
+        description: Foreign key to customers
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: total_amount
+        description: Total order amount including tax and shipping
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+
+  - name: customers
+    description: Final customer dimension table
+    columns:
+      - name: customer_key
+        description: Surrogate key for customer
+        tests:
+          - unique
+          - not_null
+      - name: total_revenue
+        description: Total revenue from completed orders
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+
+  - name: orders
+    description: Final order fact table
+    columns:
+      - name: order_key
+        description: Surrogate key for order
+        tests:
+          - unique
+          - not_null
+      - name: customer_key
+        description: Foreign key to customers
+        tests:
+          - not_null
+          - relationships:
+              to: ref('customers')
+              field: customer_key
+

@@ -1,0 +1,16 @@
+country_code,country_name,region,iso_code
+US,United States,North America,840
+CA,Canada,North America,124
+GB,United Kingdom,Europe,826
+DE,Germany,Europe,276
+FR,France,Europe,250
+IT,Italy,Europe,380
+ES,Spain,Europe,724
+AU,Australia,Oceania,36
+JP,Japan,Asia,392
+CN,China,Asia,156
+IN,India,Asia,356
+BR,Brazil,South America,76
+MX,Mexico,North America,484
+ZA,South Africa,Africa,710
+

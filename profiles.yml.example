@@ -1,0 +1,26 @@
+# dbt profiles configuration
+# Copy this file to ~/.dbt/profiles.yml and configure for your database
+
+dbt_data_transformation:
+  target: dev
+  outputs:
+    dev:
+      type: postgres  # or bigquery, snowflake, redshift, etc.
+      host: localhost
+      user: your_username
+      password: your_password
+      port: 5432
+      dbname: your_database
+      schema: dbt_dev
+      threads: 4
+      
+    prod:
+      type: postgres
+      host: your_prod_host
+      user: your_prod_user
+      password: your_prod_password
+      port: 5432
+      dbname: your_prod_database
+      schema: dbt_prod
+      threads: 8
+

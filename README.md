@@ -1,64 +1,51 @@
-# dbt Data Transformation Project
+# dbt Data Transformation
 
-A dbt (data build tool) project for transforming data in your data warehouse. This project demonstrates best practices for building modular, testable, and documented data transformations using SQL and Jinja templating.
+A comprehensive dbt project for transforming raw data into analytics-ready models. This project demonstrates best practices for data transformation using dbt, including staging, intermediate, and mart models.
 
 ## 🎯 Features
 
-- **Modular Transformations**: Reusable models and macros
-- **Data Testing**: Built-in data quality tests
-- **Documentation**: Auto-generated documentation
-- **Incremental Models**: Efficient incremental loading strategies
-- **Snapshots**: Track historical changes in source data
-- **Multi-Environment**: Support for dev, staging, and production
+- **Staging Models**: Clean and standardize raw data
+- **Intermediate Models**: Build business logic and aggregations
+- **Mart Models**: Final analytics-ready tables
+- **Custom Macros**: Reusable SQL functions
+- **Data Tests**: Ensure data quality at every layer
+- **Snapshots**: Track historical changes to source data
+- **Seeds**: Reference data management
 
 ## 📋 Prerequisites
 
 - Python 3.8+
-- dbt-core 1.0+
-- Access to data warehouse (BigQuery, Redshift, Snowflake, etc.)
+- dbt-core installed
+- Database connection (PostgreSQL, BigQuery, Snowflake, Redshift, etc.)
+- Access to source data tables
 
 ## 🛠️ Installation
 
-### 1. Clone the repository
+### 1. Install dbt
 
 ```bash
-git clone https://github.com/deepapanicker/dbt-data-transformation.git
-cd dbt-data-transformation
+pip install dbt-core
+# For specific adapters:
+pip install dbt-postgres  # PostgreSQL
+pip install dbt-bigquery  # BigQuery
+pip install dbt-snowflake # Snowflake
+pip install dbt-redshift  # Redshift
 ```
 
-### 2. Create virtual environment
+### 2. Install dbt packages
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+dbt deps
 ```
 
-### 3. Install dependencies
+### 3. Configure profiles
+
+Copy `profiles.yml.example` to `~/.dbt/profiles.yml` and configure your database connection.
+
+### 4. Install dependencies
 
 ```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure profiles
-
-Edit `~/.dbt/profiles.yml`:
-
-```yaml
-data_warehouse:
-  target: dev
-  outputs:
-    dev:
-      type: bigquery  # or redshift, snowflake
-      method: service-account
-      project: your-project-id
-      dataset: analytics_dev
-      keyfile: /path/to/service-account.json
-    prod:
-      type: bigquery
-      method: service-account
-      project: your-project-id
-      dataset: analytics_prod
-      keyfile: /path/to/service-account.json
+dbt deps
 ```
 
 ## 📁 Project Structure
@@ -72,10 +59,12 @@ dbt-data-transformation/
 │   ├── intermediate/     # Intermediate transformations
 │   │   ├── int_customer_metrics.sql
 │   │   └── int_order_summary.sql
-│   └── marts/           # Final business logic models
-│       ├── customers.sql
-│       ├── orders.sql
-│       └── customer_orders.sql
+│   ├── marts/           # Final business logic models
+│   │   ├── customers.sql
+│   │   ├── orders.sql
+│   │   └── customer_orders.sql
+│   ├── sources.yml      # Source table definitions
+│   └── schema.yml       # Model documentation and tests
 ├── macros/              # Reusable SQL macros
 │   ├── generate_surrogate_key.sql
 │   └── pivot_columns.sql
@@ -85,101 +74,125 @@ dbt-data-transformation/
 │   └── customers_snapshot.sql
 ├── seeds/               # CSV seed files
 │   └── country_codes.csv
+├── examples/            # Example scripts
+│   ├── run_dbt_example.sh
+│   ├── incremental_model_example.sql
+│   └── README.md
 ├── dbt_project.yml      # Project configuration
+├── profiles.yml.example # Database connection template
 └── README.md
 ```
 
-## 🚀 Usage
+## 🚀 Quick Start
 
-### Run all models
+### 1. Run all models
 
 ```bash
 dbt run
 ```
 
-### Run specific models
-
-```bash
-dbt run --select customers orders
-```
-
-### Run tests
+### 2. Run tests
 
 ```bash
 dbt test
 ```
 
-### Generate documentation
+### 3. Build (run + test)
+
+```bash
+dbt build
+```
+
+### 4. Generate documentation
 
 ```bash
 dbt docs generate
 dbt docs serve
 ```
 
-### Run incremental models
+## 📊 Model Layers
 
-```bash
-dbt run --select +incremental_models
+### Staging Layer (`models/staging/`)
+
+Staging models clean and standardize raw data:
+- Data type conversions
+- Field renaming and standardization
+- Null handling
+- Basic data quality checks
+
+**Example:**
+```sql
+-- stg_customers.sql
+select
+    customer_id,
+    trim(upper(first_name)) as first_name,
+    trim(lower(email)) as email,
+    date(created_at) as created_date
+from {{ source('raw', 'customers') }}
 ```
 
-## 📊 Example Models
+### Intermediate Layer (`models/intermediate/`)
 
-### Staging Model
+Intermediate models build business logic:
+- Aggregations
+- Joins between staging models
+- Business metric calculations
+- Complex transformations
 
+**Example:**
 ```sql
--- models/staging/stg_customers.sql
-{{ config(materialized='view') }}
-
-with source as (
-    select * from {{ source('raw', 'customers') }}
-),
-
-cleaned as (
-    select
-        customer_id,
-        trim(lower(email)) as email,
-        trim(first_name) as first_name,
-        trim(last_name) as last_name,
-        date_of_birth,
-        created_at,
-        updated_at
-    from source
-    where email is not null
-)
-
-select * from cleaned
+-- int_customer_metrics.sql
+select
+    c.customer_key,
+    count(distinct o.order_id) as total_orders,
+    sum(o.total_amount) as total_revenue
+from {{ ref('stg_customers') }} c
+left join {{ ref('stg_orders') }} o
+    on c.customer_id = o.customer_id
+group by c.customer_key
 ```
 
-### Mart Model
+### Mart Layer (`models/marts/`)
+
+Mart models are final analytics-ready tables:
+- Denormalized for easy querying
+- Business-friendly column names
+- Pre-calculated metrics
+- Optimized for BI tools
+
+**Example:**
+```sql
+-- customers.sql
+select
+    customer_key,
+    full_name,
+    customer_status,
+    customer_segment,
+    total_revenue,
+    total_orders
+from {{ ref('int_customer_metrics') }}
+```
+
+## 🔧 Macros
+
+### `generate_surrogate_key`
+
+Generate surrogate keys from field lists:
 
 ```sql
--- models/marts/customers.sql
-{{ config(materialized='table') }}
+{{ generate_surrogate_key(['customer_id']) }} as customer_key
+```
 
-with customers as (
-    select * from {{ ref('stg_customers') }}
-),
+### `pivot_columns`
 
-orders as (
-    select * from {{ ref('stg_orders') }}
-),
+Pivot columns dynamically:
 
-customer_metrics as (
-    select
-        c.customer_id,
-        c.email,
-        c.first_name,
-        c.last_name,
-        count(o.order_id) as total_orders,
-        sum(o.amount) as total_spent,
-        min(o.order_date) as first_order_date,
-        max(o.order_date) as last_order_date
-    from customers c
-    left join orders o on c.customer_id = o.customer_id
-    group by 1, 2, 3, 4
-)
-
-select * from customer_metrics
+```sql
+select
+    customer_id,
+    {{ pivot_columns('status', ['completed', 'cancelled'], 'count') }}
+from orders
+group by customer_id
 ```
 
 ## 🧪 Testing
@@ -187,17 +200,15 @@ select * from customer_metrics
 ### Built-in Tests
 
 ```yaml
-# dbt_project.yml
 models:
   - name: customers
     columns:
-      - name: customer_id
+      - name: customer_key
         tests:
           - unique
           - not_null
       - name: email
         tests:
-          - not_null
           - unique
 ```
 
@@ -205,88 +216,94 @@ models:
 
 ```sql
 -- tests/assert_positive_amount.sql
-select *
-from {{ ref('orders') }}
-where amount < 0
+select * from {{ ref('orders') }}
+where order_amount < 0
 ```
 
-## 📝 Documentation
+### Run Tests
 
-```yaml
-# models/marts/customers.yml
-version: 2
+```bash
+# All tests
+dbt test
 
-models:
-  - name: customers
-    description: "Customer metrics and aggregations"
-    columns:
-      - name: customer_id
-        description: "Unique customer identifier"
-      - name: total_orders
-        description: "Total number of orders placed"
-```
+# Specific model
+dbt test --select customers
 
-## 🔄 Incremental Models
-
-```sql
--- models/marts/incremental_orders.sql
-{{ config(
-    materialized='incremental',
-    unique_key='order_id',
-    on_schema_change='append_new_columns'
-) }}
-
-select
-    order_id,
-    customer_id,
-    order_date,
-    amount,
-    status
-from {{ ref('stg_orders') }}
-
-{% if is_incremental() %}
-    where order_date > (select max(order_date) from {{ this }})
-{% endif %}
+# Custom tests only
+dbt test --select test_type:custom
 ```
 
 ## 📸 Snapshots
 
+Track historical changes to source data:
+
 ```sql
--- snapshots/customers_snapshot.sql
 {% snapshot customers_snapshot %}
-
-{{
-    config(
-      target_schema='snapshots',
-      unique_key='customer_id',
-      strategy='check',
-      check_cols=['email', 'first_name', 'last_name'],
-    )
-}}
-
-select * from {{ source('raw', 'customers') }}
-
+    {{
+        config(
+            unique_key='customer_id',
+            strategy='check',
+            check_cols=['email', 'phone']
+        )
+    }}
+    select * from {{ source('raw', 'customers') }}
 {% endsnapshot %}
 ```
 
-## 🔧 Macros
-
-```sql
--- macros/generate_surrogate_key.sql
-{% macro generate_surrogate_key(field_list) %}
-    {{ dbt_utils.generate_surrogate_key(field_list) }}
-{% endmacro %}
+Run snapshots:
+```bash
+dbt snapshot
 ```
 
-## 📚 Best Practices
+## 🌱 Seeds
 
-1. **Staging Layer**: Clean and standardize raw data
-2. **Intermediate Layer**: Build reusable transformations
-3. **Marts Layer**: Final business logic models
-4. **Testing**: Test at every layer
-5. **Documentation**: Document all models and columns
-6. **Incremental**: Use incremental models for large tables
-7. **Modularity**: Use macros for reusable logic
+Load reference data from CSV files:
+
+```bash
+dbt seed
+```
+
+## 📝 Examples
+
+See the `examples/` directory for:
+- Common dbt workflows (`run_dbt_example.sh`)
+- Incremental model example (`incremental_model_example.sql`)
+- Usage documentation (`README.md`)
+
+## 🔍 Documentation
+
+Generate and view documentation:
+
+```bash
+# Generate docs
+dbt docs generate
+
+# Serve docs locally
+dbt docs serve
+```
+
+Documentation includes:
+- Model lineage graphs
+- Column descriptions
+- Test results
+- Source definitions
+
+## 🏗️ Best Practices
+
+1. **Layer Your Models**: Staging → Intermediate → Marts
+2. **Use Tags**: Organize models with tags
+3. **Document Everything**: Add descriptions to models and columns
+4. **Test Early**: Write tests for data quality
+5. **Use Macros**: Reuse common SQL patterns
+6. **Version Control**: Commit all dbt code to git
+7. **Incremental Models**: Use for large tables
+8. **Snapshots**: Track historical changes
+
+## 📚 Resources
+
+- [dbt Documentation](https://docs.getdbt.com/)
+- [dbt Best Practices](https://docs.getdbt.com/guides/best-practices)
+- [dbt Community](https://www.getdbt.com/community)
 
 ## 🤝 Contributing
 
@@ -306,4 +323,3 @@ MIT License
 
 - GitHub: [@deepapanicker](https://github.com/deepapanicker)
 - Portfolio: [deepapanicker.com](https://deepapanicker.com)
-

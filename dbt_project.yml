@@ -1,9 +1,11 @@
-name: 'data_transformation'
+name: 'dbt_data_transformation'
 version: '1.0.0'
 config-version: 2
 
-profile: 'data_warehouse'
+# This setting configures which "profile" dbt uses for this project.
+profile: 'dbt_data_transformation'
 
+# These configurations specify where dbt should look for different types of files.
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
@@ -16,15 +18,41 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+# Configuring models
 models:
-  data_transformation:
+  dbt_data_transformation:
+    # Staging models
     staging:
       +materialized: view
+      +tags: ["staging"]
+      +schema: staging
+      
+    # Intermediate models
     intermediate:
-      +materialized: view
+      +materialized: table
+      +tags: ["intermediate"]
+      +schema: intermediate
+      
+    # Mart models
     marts:
       +materialized: table
+      +tags: ["marts"]
+      +schema: marts
 
+# Configuring seeds
+seeds:
+  dbt_data_transformation:
+    +quote_columns: true
+
+# Configuring snapshots
+snapshots:
+  dbt_data_transformation:
+    target_schema: snapshots
+
+# Variables
 vars:
   start_date: '2020-01-01'
+  end_date: '2024-12-31'
 
+# Dependencies
+require-dbt-version: ">=1.0.0"
