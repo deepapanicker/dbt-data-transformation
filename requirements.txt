@@ -1,0 +1,6 @@
+dbt-core==1.7.0
+dbt-bigquery==1.7.0
+dbt-redshift==1.7.0
+dbt-snowflake==1.7.0
+dbt-utils==1.1.1
+
